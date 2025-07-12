@@ -1,1 +1,200 @@
-# label-platform-backend
+# Label Platform Backend
+
+A complete Golang backend server built with Gin and GORM, following Clean Architecture principles. This backend provides REST APIs for uploading UI design screenshots, storing images on MinIO, and saving annotation metadata in PostgreSQL.
+
+## Features
+
+- **Clean Architecture**: Follows domain-driven design principles with clear separation of concerns
+- **Image Upload**: Upload UI design screenshots with metadata
+- **MinIO Storage**: Secure object storage for uploaded images
+- **PostgreSQL Database**: Reliable data storage with JSONB support for flexible metadata
+- **RESTful API**: Complete CRUD operations for images
+- **CORS Support**: Cross-origin resource sharing enabled
+- **Graceful Shutdown**: Proper server shutdown handling
+
+## Architecture
+
+```
+├── cmd/main.go                    # Application entry point
+├── internal/
+│   ├── domain/                    # Domain layer (entities, interfaces)
+│   │   ├── entity/
+│   │   ├── repository/
+│   │   └── usecase/
+│   ├── application/               # Application layer (use case implementations)
+│   │   └── usecase/
+│   ├── infrastructure/            # Infrastructure layer (external services)
+│   │   ├── database/
+│   │   ├── repository/
+│   │   └── storage/
+│   └── interfaces/                # Interface layer (HTTP handlers, routers)
+│       └── http/
+│           ├── handler/
+│           └── router/
+```
+
+## Database Schema
+
+```sql
+CREATE TABLE images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  minio_path TEXT NOT NULL,
+  ground_truth JSONB,
+  predicted_labels JSONB,
+  evaluation_scores JSONB,
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now()
+);
+```
+
+## Prerequisites
+
+- Go 1.21 or higher
+- Docker and Docker Compose
+- PostgreSQL 15
+- MinIO
+
+## Quick Start
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd label-platform-backend
+   ```
+
+2. **Setup environment**
+   ```bash
+   cp env.example .env
+   # Edit .env with your configuration
+   ```
+
+3. **Start dependencies**
+   ```bash
+   make docker-up
+   ```
+
+4. **Install dependencies**
+   ```bash
+   make deps
+   ```
+
+5. **Run the application**
+   ```bash
+   make run
+   ```
+
+The server will start on `http://localhost:8080`
+
+## API Endpoints
+
+### Upload Image
+```
+POST /api/v1/images/upload
+Content-Type: multipart/form-data
+
+Form Data:
+- image: File (required)
+- ground_truth: JSON string (optional)
+```
+
+### Get All Images
+```
+GET /api/v1/images/
+```
+
+### Get Image by ID
+```
+GET /api/v1/images/{id}
+```
+
+### Update Image Predictions
+```
+PUT /api/v1/images/{id}
+Content-Type: application/json
+
+{
+  "predicted_labels": {
+    "model1": {"label": "button", "confidence": 0.95},
+    "model2": {"label": "input", "confidence": 0.87}
+  },
+  "evaluation_scores": {
+    "accuracy": 0.92,
+    "precision": 0.89,
+    "recall": 0.94
+  }
+}
+```
+
+### Delete Image
+```
+DELETE /api/v1/images/{id}
+```
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | `8080` |
+| `GIN_MODE` | Gin mode (debug/release) | `debug` |
+| `DB_HOST` | PostgreSQL host | `localhost` |
+| `DB_PORT` | PostgreSQL port | `5432` |
+| `DB_USER` | PostgreSQL user | `postgres` |
+| `DB_PASSWORD` | PostgreSQL password | `password` |
+| `DB_NAME` | PostgreSQL database name | `label_platform` |
+| `DB_SSL_MODE` | PostgreSQL SSL mode | `disable` |
+| `MINIO_ENDPOINT` | MinIO endpoint | `localhost:9000` |
+| `MINIO_ACCESS_KEY` | MinIO access key | `minioadmin` |
+| `MINIO_SECRET_KEY` | MinIO secret key | `minioadmin` |
+| `MINIO_USE_SSL` | MinIO SSL usage | `false` |
+| `MINIO_BUCKET_NAME` | MinIO bucket name | `ui-screenshots` |
+
+## Development
+
+### Available Commands
+
+```bash
+make help          # Show available commands
+make deps          # Download dependencies
+make build         # Build the application
+make run           # Run the application
+make test          # Run tests
+make clean         # Clean build artifacts
+make docker-up     # Start PostgreSQL and MinIO
+make docker-down   # Stop PostgreSQL and MinIO
+make setup         # Complete development setup
+```
+
+### Project Structure
+
+- **Domain Layer**: Contains business entities, repository interfaces, and use case interfaces
+- **Application Layer**: Contains use case implementations and business logic
+- **Infrastructure Layer**: Contains database connections, repository implementations, and external service clients
+- **Interface Layer**: Contains HTTP handlers, routers, and API endpoints
+
+## Docker Services
+
+### PostgreSQL
+- **Port**: 5432
+- **Database**: label_platform
+- **Username**: postgres
+- **Password**: password
+
+### MinIO
+- **API Port**: 9000
+- **Console Port**: 9001
+- **Access Key**: minioadmin
+- **Secret Key**: minioadmin
+- **Bucket**: ui-screenshots
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
