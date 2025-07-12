@@ -88,15 +88,28 @@ func (h *ImageHandler) UploadImage(c *gin.Context) {
 		return
 	}
 
+	// Convert datatypes.JSON to map for response
+	var groundTruthMap, predictedLabelsMap, evaluationScoresMap map[string]any
+
+	if image.GroundTruth != nil {
+		json.Unmarshal(image.GroundTruth, &groundTruthMap)
+	}
+	if image.PredictedLabels != nil {
+		json.Unmarshal(image.PredictedLabels, &predictedLabelsMap)
+	}
+	if image.EvaluationScores != nil {
+		json.Unmarshal(image.EvaluationScores, &evaluationScoresMap)
+	}
+
 	// Add signed URL to response
 	response := gin.H{
 		"id":                image.ID,
 		"name":              image.Name,
 		"minio_path":        image.MinioPath,
 		"image_url":         signedURL,
-		"ground_truth":      image.GroundTruth,
-		"predicted_labels":  image.PredictedLabels,
-		"evaluation_scores": image.EvaluationScores,
+		"ground_truth":      groundTruthMap,
+		"predicted_labels":  predictedLabelsMap,
+		"evaluation_scores": evaluationScoresMap,
 		"created_at":        image.CreatedAt,
 		"updated_at":        image.UpdatedAt,
 		"file_info": gin.H{
@@ -126,8 +139,24 @@ func (h *ImageHandler) GetImageByID(c *gin.Context) {
 	// Generate signed URL for the image
 	signedURL, err := h.imageUseCase.GetImageURL(c.Request.Context(), image.MinioPath, time.Hour)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate image URL"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to generate image URL",
+			"details": err.Error(),
+		})
 		return
+	}
+
+	// Convert datatypes.JSON to map for response
+	var groundTruthMap, predictedLabelsMap, evaluationScoresMap map[string]any
+
+	if image.GroundTruth != nil {
+		json.Unmarshal(image.GroundTruth, &groundTruthMap)
+	}
+	if image.PredictedLabels != nil {
+		json.Unmarshal(image.PredictedLabels, &predictedLabelsMap)
+	}
+	if image.EvaluationScores != nil {
+		json.Unmarshal(image.EvaluationScores, &evaluationScoresMap)
 	}
 
 	// Add signed URL to response
@@ -136,9 +165,9 @@ func (h *ImageHandler) GetImageByID(c *gin.Context) {
 		"name":              image.Name,
 		"minio_path":        image.MinioPath,
 		"image_url":         signedURL,
-		"ground_truth":      image.GroundTruth,
-		"predicted_labels":  image.PredictedLabels,
-		"evaluation_scores": image.EvaluationScores,
+		"ground_truth":      groundTruthMap,
+		"predicted_labels":  predictedLabelsMap,
+		"evaluation_scores": evaluationScoresMap,
 		"created_at":        image.CreatedAt,
 		"updated_at":        image.UpdatedAt,
 	}
@@ -163,14 +192,27 @@ func (h *ImageHandler) GetAllImages(c *gin.Context) {
 			continue
 		}
 
+		// Convert datatypes.JSON to map for response
+		var groundTruthMap, predictedLabelsMap, evaluationScoresMap map[string]any
+
+		if image.GroundTruth != nil {
+			json.Unmarshal(image.GroundTruth, &groundTruthMap)
+		}
+		if image.PredictedLabels != nil {
+			json.Unmarshal(image.PredictedLabels, &predictedLabelsMap)
+		}
+		if image.EvaluationScores != nil {
+			json.Unmarshal(image.EvaluationScores, &evaluationScoresMap)
+		}
+
 		response = append(response, gin.H{
 			"id":                image.ID,
 			"name":              image.Name,
 			"minio_path":        image.MinioPath,
 			"image_url":         signedURL,
-			"ground_truth":      image.GroundTruth,
-			"predicted_labels":  image.PredictedLabels,
-			"evaluation_scores": image.EvaluationScores,
+			"ground_truth":      groundTruthMap,
+			"predicted_labels":  predictedLabelsMap,
+			"evaluation_scores": evaluationScoresMap,
 			"created_at":        image.CreatedAt,
 			"updated_at":        image.UpdatedAt,
 		})

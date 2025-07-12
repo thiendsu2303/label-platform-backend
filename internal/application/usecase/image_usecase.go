@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"mime/multipart"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/label-platform-backend/internal/domain/repository"
 	"github.com/label-platform-backend/internal/infrastructure/storage"
 	"github.com/minio/minio-go/v7"
+	"gorm.io/datatypes"
 )
 
 // ImageUseCaseImpl implements the ImageUseCase interface
@@ -46,12 +48,22 @@ func (u *ImageUseCaseImpl) UploadImage(ctx context.Context, file *multipart.File
 		return nil, fmt.Errorf("failed to upload file to MinIO: %w", err)
 	}
 
+	// Convert ground truth to datatypes.JSON
+	var groundTruthJSON datatypes.JSON
+	if groundTruth != nil {
+		groundTruthBytes, err := json.Marshal(groundTruth)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal ground truth: %w", err)
+		}
+		groundTruthJSON = datatypes.JSON(groundTruthBytes)
+	}
+
 	// Create image entity
 	image := &entity.Image{
 		ID:          uuid.MustParse(uuidStr),
 		Name:        file.Filename,
 		MinioPath:   filename,
-		GroundTruth: groundTruth,
+		GroundTruth: groundTruthJSON,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -82,8 +94,24 @@ func (u *ImageUseCaseImpl) UpdateImage(ctx context.Context, id uuid.UUID, predic
 		return nil, fmt.Errorf("failed to get image: %w", err)
 	}
 
-	image.PredictedLabels = predictedLabels
-	image.EvaluationScores = evaluationScores
+	// Convert predicted labels to datatypes.JSON
+	if predictedLabels != nil {
+		predictedLabelsBytes, err := json.Marshal(predictedLabels)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal predicted labels: %w", err)
+		}
+		image.PredictedLabels = datatypes.JSON(predictedLabelsBytes)
+	}
+
+	// Convert evaluation scores to datatypes.JSON
+	if evaluationScores != nil {
+		evaluationScoresBytes, err := json.Marshal(evaluationScores)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal evaluation scores: %w", err)
+		}
+		image.EvaluationScores = datatypes.JSON(evaluationScoresBytes)
+	}
+
 	image.UpdatedAt = time.Now()
 
 	err = u.imageRepo.Update(ctx, image)
