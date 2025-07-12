@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"mime/multipart"
-	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,9 +29,9 @@ func NewImageUseCase(imageRepo repository.ImageRepository, minioClient *storage.
 
 // UploadImage handles the upload of an image file and creates a new image
 func (u *ImageUseCaseImpl) UploadImage(ctx context.Context, file *multipart.FileHeader, groundTruth map[string]any) (*entity.Image, error) {
-	// Generate unique filename
-	ext := filepath.Ext(file.Filename)
-	filename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+	// Generate unique filename with format: screenshots/{uuid}-{original_filename}
+	uuidStr := uuid.New().String()
+	filename := fmt.Sprintf("screenshots/%s-%s", uuidStr, file.Filename)
 
 	// Upload file to MinIO
 	src, err := file.Open()
@@ -49,7 +48,7 @@ func (u *ImageUseCaseImpl) UploadImage(ctx context.Context, file *multipart.File
 
 	// Create image entity
 	image := &entity.Image{
-		ID:          uuid.New(),
+		ID:          uuid.MustParse(uuidStr),
 		Name:        file.Filename,
 		MinioPath:   filename,
 		GroundTruth: groundTruth,

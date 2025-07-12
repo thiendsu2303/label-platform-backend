@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,9 +25,33 @@ func NewImageHandler(imageUseCase usecase.ImageUseCase) *ImageHandler {
 
 // UploadImage handles image upload requests
 func (h *ImageHandler) UploadImage(c *gin.Context) {
+	// Check if file is present in the request
 	file, err := c.FormFile("image")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No image file provided"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "No image file provided. Please include a file with field name 'image'",
+			"details": "Expected multipart/form-data with field 'image' containing the image file",
+		})
+		return
+	}
+
+	// Validate file type
+	contentType := file.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "image/") {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":         "Invalid file type. Please upload an image file (PNG, JPG, JPEG, etc.)",
+			"received_type": contentType,
+		})
+		return
+	}
+
+	// Validate file size (optional - 10MB limit)
+	if file.Size > 10*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":     "File too large. Maximum size is 10MB",
+			"file_size": file.Size,
+			"max_size":  10 * 1024 * 1024,
+		})
 		return
 	}
 
@@ -35,21 +60,31 @@ func (h *ImageHandler) UploadImage(c *gin.Context) {
 	var groundTruth map[string]any
 	if groundTruthStr != "" {
 		if err := json.Unmarshal([]byte(groundTruthStr), &groundTruth); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ground truth format"})
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Invalid ground truth format. Please provide valid JSON",
+				"details": err.Error(),
+			})
 			return
 		}
 	}
 
+	// Upload image
 	image, err := h.imageUseCase.UploadImage(c.Request.Context(), file, groundTruth)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to upload image",
+			"details": err.Error(),
+		})
 		return
 	}
 
 	// Generate signed URL for the uploaded image
 	signedURL, err := h.imageUseCase.GetImageURL(c.Request.Context(), image.MinioPath, time.Hour)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate image URL"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to generate image URL",
+			"details": err.Error(),
+		})
 		return
 	}
 
@@ -64,6 +99,10 @@ func (h *ImageHandler) UploadImage(c *gin.Context) {
 		"evaluation_scores": image.EvaluationScores,
 		"created_at":        image.CreatedAt,
 		"updated_at":        image.UpdatedAt,
+		"file_info": gin.H{
+			"size":         file.Size,
+			"content_type": contentType,
+		},
 	}
 
 	c.JSON(http.StatusCreated, response)

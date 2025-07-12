@@ -94,8 +94,56 @@ POST /api/v1/images/upload
 Content-Type: multipart/form-data
 
 Form Data:
-- image: File (required)
-- ground_truth: JSON string (optional)
+- image: File (required) - The image file to upload
+- ground_truth: JSON string (optional) - Ground truth labels in JSON format
+
+Features:
+- Supports common image formats (PNG, JPG, JPEG, etc.)
+- File size limit: 10MB
+- Stores images in MinIO with path format: screenshots/{uuid}-{original_filename}
+- Validates file type and size
+- Returns signed URL for immediate access
+```
+
+**Example Request:**
+```javascript
+const formData = new FormData();
+formData.append('image', fileInput.files[0]);
+formData.append('ground_truth', JSON.stringify({
+  "elements": [
+    {"type": "button", "text": "Submit", "position": {"x": 100, "y": 200}},
+    {"type": "input", "placeholder": "Enter text", "position": {"x": 100, "y": 150}}
+  ]
+}));
+
+fetch('/api/v1/images/upload', {
+  method: 'POST',
+  body: formData
+});
+```
+
+**Response:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "ui-design.png",
+  "minio_path": "screenshots/550e8400-e29b-41d4-a716-446655440000-ui-design.png",
+  "image_url": "https://localhost:9000/ui-screenshots/screenshots/550e8400-e29b-41d4-a716-446655440000-ui-design.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...",
+  "ground_truth": {
+    "elements": [
+      {"type": "button", "text": "Submit", "position": {"x": 100, "y": 200}},
+      {"type": "input", "placeholder": "Enter text", "position": {"x": 100, "y": 150}}
+    ]
+  },
+  "predicted_labels": null,
+  "evaluation_scores": null,
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z",
+  "file_info": {
+    "size": 245760,
+    "content_type": "image/png"
+  }
+}
 ```
 
 ### Get All Images
