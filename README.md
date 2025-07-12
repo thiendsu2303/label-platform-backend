@@ -174,75 +174,20 @@ Content-Type: application/json
 }
 ```
 
+### Update Image Ground Truth
+```
+PUT /api/v1/images/{id}/ground-truth
+Content-Type: application/json
+
+{
+  "ground_truth": {
+    "elements": [
+      {"type": "button", "text": "Submit", "position": {"x": 100, "y": 200}},
+      {"type": "input", "placeholder": "Enter text", "position": {"x": 100, "y": 150}}
+    ]
+  }
+}
+```
+
 ### Delete Image
 ```
-DELETE /api/v1/images/{id}
-```
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `8080` |
-| `GIN_MODE` | Gin mode (debug/release) | `debug` |
-| `DB_HOST` | PostgreSQL host | `localhost` |
-| `DB_PORT` | PostgreSQL port | `5432` |
-| `DB_USER` | PostgreSQL user | `postgres` |
-| `DB_PASSWORD` | PostgreSQL password | `password` |
-| `DB_NAME` | PostgreSQL database name | `label_platform` |
-| `DB_SSL_MODE` | PostgreSQL SSL mode | `disable` |
-| `MINIO_ENDPOINT` | MinIO endpoint | `localhost:9000` |
-| `MINIO_ACCESS_KEY` | MinIO access key | `minioadmin` |
-| `MINIO_SECRET_KEY` | MinIO secret key | `minioadmin` |
-| `MINIO_USE_SSL` | MinIO SSL usage | `false` |
-| `MINIO_BUCKET_NAME` | MinIO bucket name | `ui-screenshots` |
-
-## Development
-
-### Available Commands
-
-```bash
-make help          # Show available commands
-make deps          # Download dependencies
-make build         # Build the application
-make run           # Run the application
-make test          # Run tests
-make clean         # Clean build artifacts
-make docker-up     # Start PostgreSQL and MinIO
-make docker-down   # Stop PostgreSQL and MinIO
-make setup         # Complete development setup
-```
-
-### Project Structure
-
-- **Domain Layer**: Contains business entities, repository interfaces, and use case interfaces
-- **Application Layer**: Contains use case implementations and business logic
-- **Infrastructure Layer**: Contains database connections, repository implementations, and external service clients
-- **Interface Layer**: Contains HTTP handlers, routers, and API endpoints
-
-## Docker Services
-
-### PostgreSQL
-- **Port**: 5432
-- **Database**: label_platform
-- **Username**: postgres
-- **Password**: password
-
-### MinIO
-- **API Port**: 9000
-- **Console Port**: 9001
-- **Access Key**: minioadmin
-- **Secret Key**: minioadmin
-- **Bucket**: ui-screenshots
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.

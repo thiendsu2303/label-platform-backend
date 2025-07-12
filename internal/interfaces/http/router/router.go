@@ -28,6 +28,7 @@ func SetupRouter(imageHandler *handler.ImageHandler) *gin.Engine {
 			images.GET("/:id", imageHandler.GetImageByID)
 			images.GET("/:id/url", imageHandler.GetImageURL)
 			images.PUT("/:id", imageHandler.UpdateImage)
+			images.PUT("/:id/ground-truth", imageHandler.UpdateGroundTruth)
 			images.DELETE("/:id", imageHandler.DeleteImage)
 		}
 	}

@@ -295,3 +295,66 @@ func (h *ImageHandler) GetImageURL(c *gin.Context) {
 		"expires_in": "1 hour",
 	})
 }
+
+// UpdateGroundTruth handles requests to update image ground truth
+func (h *ImageHandler) UpdateGroundTruth(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	var request struct {
+		GroundTruth map[string]any `json:"ground_truth"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	image, err := h.imageUseCase.UpdateGroundTruth(c.Request.Context(), id, request.GroundTruth)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Generate signed URL for the image
+	signedURL, err := h.imageUseCase.GetImageURL(c.Request.Context(), image.MinioPath, time.Hour)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to generate image URL",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Convert datatypes.JSON to map for response
+	var groundTruthMap, predictedLabelsMap, evaluationScoresMap map[string]any
+
+	if image.GroundTruth != nil {
+		json.Unmarshal(image.GroundTruth, &groundTruthMap)
+	}
+	if image.PredictedLabels != nil {
+		json.Unmarshal(image.PredictedLabels, &predictedLabelsMap)
+	}
+	if image.EvaluationScores != nil {
+		json.Unmarshal(image.EvaluationScores, &evaluationScoresMap)
+	}
+
+	// Add signed URL to response
+	response := gin.H{
+		"id":                image.ID,
+		"name":              image.Name,
+		"minio_path":        image.MinioPath,
+		"image_url":         signedURL,
+		"ground_truth":      groundTruthMap,
+		"predicted_labels":  predictedLabelsMap,
+		"evaluation_scores": evaluationScoresMap,
+		"created_at":        image.CreatedAt,
+		"updated_at":        image.UpdatedAt,
+	}
+
+	c.JSON(http.StatusOK, response)
+}

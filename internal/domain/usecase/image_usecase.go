@@ -15,6 +15,7 @@ type ImageUseCase interface {
 	GetImageByID(ctx context.Context, id uuid.UUID) (*entity.Image, error)
 	GetAllImages(ctx context.Context) ([]*entity.Image, error)
 	UpdateImage(ctx context.Context, id uuid.UUID, predictedLabels map[string]any, evaluationScores map[string]any) (*entity.Image, error)
+	UpdateGroundTruth(ctx context.Context, id uuid.UUID, groundTruth map[string]any) (*entity.Image, error)
 	DeleteImage(ctx context.Context, id uuid.UUID) error
 	GetImageURL(ctx context.Context, minioPath string, expiry time.Duration) (string, error)
 }

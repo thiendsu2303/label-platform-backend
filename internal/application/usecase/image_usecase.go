@@ -147,3 +147,31 @@ func (u *ImageUseCaseImpl) GetImageURL(ctx context.Context, minioPath string, ex
 	}
 	return url.String(), nil
 }
+
+// UpdateGroundTruth updates an image's ground truth data
+func (u *ImageUseCaseImpl) UpdateGroundTruth(ctx context.Context, id uuid.UUID, groundTruth map[string]any) (*entity.Image, error) {
+	image, err := u.imageRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get image: %w", err)
+	}
+
+	// Convert ground truth to datatypes.JSON
+	var groundTruthJSON datatypes.JSON
+	if groundTruth != nil {
+		groundTruthBytes, err := json.Marshal(groundTruth)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal ground truth: %w", err)
+		}
+		groundTruthJSON = datatypes.JSON(groundTruthBytes)
+	}
+
+	image.GroundTruth = groundTruthJSON
+	image.UpdatedAt = time.Now()
+
+	err = u.imageRepo.Update(ctx, image)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update image: %w", err)
+	}
+
+	return image, nil
+}
