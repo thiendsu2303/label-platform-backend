@@ -13,6 +13,7 @@ import (
 	"github.com/label-platform-backend/internal/application/usecase"
 	"github.com/label-platform-backend/internal/domain/entity"
 	"github.com/label-platform-backend/internal/infrastructure/database"
+	"github.com/label-platform-backend/internal/infrastructure/redis"
 	"github.com/label-platform-backend/internal/infrastructure/repository"
 	"github.com/label-platform-backend/internal/infrastructure/storage"
 	"github.com/label-platform-backend/internal/interfaces/http/handler"
@@ -23,6 +24,12 @@ func main() {
 	// Load environment variables
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using system environment variables")
+	}
+
+	ctx := context.Background()
+	// Initialize Redis
+	if err := redis.NewRedisConnection(ctx); err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
 
 	// Initialize database

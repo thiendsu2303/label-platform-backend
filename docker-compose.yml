@@ -30,10 +30,26 @@ services:
     networks:
       - label-platform-network
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: label-platform-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --save 60 1
+      --appendonly yes
+      --loglevel warning
+    networks:
+      - label-platform-network
+
 volumes:
   postgres_data:
   minio_data:
+  redis_data:
 
 networks:
   label-platform-network:
-    driver: bridge 
+    driver: bridge
