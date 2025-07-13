@@ -175,3 +175,8 @@ func (u *ImageUseCaseImpl) UpdateGroundTruth(ctx context.Context, id uuid.UUID, 
 
 	return image, nil
 }
+
+// GetMinioClient returns the MinioClient instance
+func (u *ImageUseCaseImpl) GetMinioClient() *storage.MinioClient {
+	return u.minioClient
+}

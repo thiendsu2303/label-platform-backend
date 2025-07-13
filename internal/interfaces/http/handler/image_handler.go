@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -9,6 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/label-platform-backend/internal/domain/usecase"
+	"github.com/label-platform-backend/internal/infrastructure/redis"
+	"github.com/label-platform-backend/internal/infrastructure/storage"
+	"github.com/minio/minio-go/v7"
 )
 
 // ImageHandler handles HTTP requests for images
@@ -357,4 +362,82 @@ func (h *ImageHandler) UpdateGroundTruth(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// PredictImage handles GET /api/v1/images/:id/predict
+func (h *ImageHandler) PredictImage(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	// Rate limit: chỉ cho phép mỗi ảnh predict 1 lần mỗi 5 phút
+	lockKey := "predict-lock:" + id.String()
+	ctx := c.Request.Context()
+	ttl, err := redis.RedisClient.TTL(ctx, lockKey).Result()
+	if err == nil && ttl > 0 {
+		c.JSON(429, gin.H{
+			"error":               "Rate limited. Please wait before retrying.",
+			"retry_after_seconds": int(ttl.Seconds()),
+		})
+		return
+	}
+	// Dùng SetNX để đảm bảo chỉ set khi chưa có key, và luôn có TTL
+	ok, err := redis.RedisClient.SetNX(ctx, lockKey, "1", 5*time.Minute).Result()
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Redis error", "details": err.Error()})
+		return
+	}
+	if !ok {
+		// Nếu key đã tồn tại (race condition), trả về rate limit luôn
+		ttl, _ := redis.RedisClient.TTL(ctx, lockKey).Result()
+		c.JSON(429, gin.H{
+			"error":               "Rate limited. Please wait before retrying.",
+			"retry_after_seconds": int(ttl.Seconds()),
+		})
+		return
+	}
+
+	// Lấy thông tin ảnh từ Postgres
+	image, err := h.imageUseCase.GetImageByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Image not found"})
+		return
+	}
+
+	// Lấy file ảnh từ MinIO
+	minioClient := h.imageUseCase.(interface{ GetMinioClient() *storage.MinioClient }).GetMinioClient()
+	obj, err := minioClient.GetClient().GetObject(c.Request.Context(), minioClient.GetBucket(), image.MinioPath, minio.GetObjectOptions{})
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to get image from MinIO"})
+		return
+	}
+	defer obj.Close()
+	imgBytes, err := io.ReadAll(obj)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to read image data"})
+		return
+	}
+
+	// Encode base64
+	imgBase64 := base64.StdEncoding.EncodeToString(imgBytes)
+
+	// Tạo payload
+	payload := map[string]any{
+		"id":           image.ID.String(),
+		"image_base64": imgBase64,
+	}
+	payloadJSON, _ := json.Marshal(payload)
+
+	ctx = c.Request.Context()
+	redis.RedisClient.RPush(ctx, redis.QueueGPT, payloadJSON)
+	redis.RedisClient.RPush(ctx, redis.QueueClaude, payloadJSON)
+	redis.RedisClient.RPush(ctx, redis.QueueGemini, payloadJSON)
+
+	c.JSON(200, gin.H{
+		"message": "Image pushed to model queues",
+		"id":      image.ID,
+	})
 }
