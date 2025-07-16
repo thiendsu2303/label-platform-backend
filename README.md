@@ -71,6 +71,7 @@ CREATE TABLE images (
 
 3. **Start dependencies**
    ```bash
+   docker network create label-platform-network
    make docker-up
    ```
 
