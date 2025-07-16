@@ -52,4 +52,4 @@ volumes:
 
 networks:
   label-platform-network:
-    driver: bridge
+    external: true
