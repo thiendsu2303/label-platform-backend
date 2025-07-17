@@ -31,7 +31,10 @@ func SetupRouter(imageHandler *handler.ImageHandler) *gin.Engine {
 			images.PUT("/:id/ground-truth", imageHandler.UpdateGroundTruth)
 			images.DELETE("/:id", imageHandler.DeleteImage)
 			images.GET("/:id/predict", imageHandler.PredictImage)
+			images.GET("/:id/predict/model", imageHandler.GetPredictModels)
 		}
+
+		api.POST("/predict/notify", imageHandler.PredictNotify)
 	}
 
 	return router

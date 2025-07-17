@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/label-platform-backend/internal/domain/usecase"
+	"github.com/label-platform-backend/internal/infrastructure"
 	"github.com/label-platform-backend/internal/infrastructure/redis"
 	"github.com/label-platform-backend/internal/infrastructure/storage"
 	"github.com/minio/minio-go/v7"
@@ -439,5 +441,71 @@ func (h *ImageHandler) PredictImage(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"message": "Image pushed to model queues",
 		"id":      image.ID,
+	})
+}
+
+// PredictNotifyRequest là struct nhận notify từ worker
+// image_id: ID của ảnh, model: tên model, result: kết quả predict
+// Bạn có thể bổ sung thêm trường nếu cần
+
+type PredictNotifyRequest struct {
+	ImageID string `json:"image_id"`
+	Model   string `json:"model"`
+	Result  string `json:"result"`
+}
+
+// PredictNotify nhận notify từ worker và forward webhook tới UI
+func (h *ImageHandler) PredictNotify(c *gin.Context) {
+	var req PredictNotifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body", "details": err.Error()})
+		return
+	}
+
+	// Gửi webhook tới UI
+	webhookURL := os.Getenv("WEBHOOK_URL")
+	if webhookURL != "" {
+		payload := map[string]interface{}{
+			"image_id": req.ImageID,
+			"model":    req.Model,
+			"result":   req.Result,
+		}
+		err := infrastructure.NotifyPredictResult(webhookURL, payload)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "webhook failed", "details": err.Error()})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "received", "image_id": req.ImageID, "model": req.Model})
+}
+
+// GetPredictModels trả về predicted_labels (kết quả dự đoán của các model) cho ảnh theo id
+func (h *ImageHandler) GetPredictModels(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	image, err := h.imageUseCase.GetImageByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
+		return
+	}
+
+	// predicted_labels là JSON, trả về dạng map
+	var predictedLabelsMap map[string]interface{}
+	if image.PredictedLabels != nil {
+		if err := json.Unmarshal(image.PredictedLabels, &predictedLabelsMap); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse predicted_labels", "details": err.Error()})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"image_id":         id,
+		"predicted_labels": predictedLabelsMap,
 	})
 }
